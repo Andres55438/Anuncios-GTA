@@ -1,0 +1,71 @@
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método no permitido" });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({
+      error: "Falta configurar OPENAI_API_KEY en Vercel"
+    });
+  }
+
+  try {
+    const { vacancy = {}, instruction = "" } = req.body || {};
+
+    const prompt = `
+Crea un anuncio gráfico profesional para reclutamiento de Grupo de Tiendas Asociadas (GTA) en Guatemala.
+Formato vertical 4:5, diseño moderno, legible y atractivo para redes sociales.
+Usa español correcto, jerarquía visual clara, colores corporativos sobrios.
+Incluye solo los datos proporcionados; no inventes información.
+
+Puesto: ${vacancy.puesto || ""}
+Ubicación: ${vacancy.ubicacion || ""}
+Salario: ${vacancy.salario || ""}
+Requisitos: ${vacancy.requisitos || ""}
+Funciones: ${vacancy.funciones || ""}
+Contacto: ${vacancy.contacto || ""}
+Estilo: ${vacancy.estilo || ""}
+Cambios solicitados: ${instruction}
+`;
+
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-image-1",
+        prompt,
+        size: "1024x1536"
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.error?.message || "No se pudo generar el diseño"
+      });
+    }
+
+    const image = data.data?.[0]?.b64_json;
+
+    if (!image) {
+      return res.status(500).json({
+        error: "La IA no devolvió una imagen"
+      });
+    }
+
+    return res.status(200).json({
+      image: `data:image/png;base64,${image}`
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || "Error interno del servidor"
+    });
+  }
+}
