@@ -1,0 +1,11 @@
+const $=x=>document.getElementById(x);let vacancy={},instruction="",history=[];
+function read(){vacancy={puesto:$("puesto").value.trim(),ubicacion:$("ubicacion").value.trim(),salario:$("salario").value.trim(),requisitos:$("requisitos").value.trim(),funciones:$("funciones").value.trim(),contacto:$("contacto").value.trim(),estilo:$("estilo").value}}
+function fill(v){vacancy={...vacancy,...v};for(const k of Object.keys(vacancy))if($(k))$(k).value=vacancy[k]}
+function add(t,c){let d=document.createElement("div");d.className=c;d.textContent=t;$("msgs").appendChild(d);$("msgs").scrollTop=999999}
+async function generate(){read();$("gen").disabled=true;$("status").textContent="Generando…";try{let r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({vacancy,instruction})}),d=await r.json();if(!r.ok)throw Error(d.error);$("img").src=d.image;$("img").hidden=false;$("empty").hidden=true;$("save").disabled=false;$("status").textContent="Listo ✓"}catch(e){$("status").textContent="❌ "+e.message}finally{$("gen").disabled=false}}
+$("gen").onclick=()=>{instruction="";generate()};
+async function send(t){t=(t||$("msg").value).trim();if(!t)return;$("msg").value="";add(t,"me");try{let r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:t,vacancy,history})}),d=await r.json();if(!r.ok)throw Error(d.error);fill(d.vacancy||{});instruction=d.design_instruction||instruction;history.push({u:t,a:d.reply});add(d.reply,"bot");if(d.regenerate)await generate()}catch(e){add("Error: "+e.message,"bot")}}
+$("go").onclick=()=>send();$("msg").onkeydown=e=>{if(e.key==="Enter")send()};document.querySelectorAll(".chips button").forEach(b=>b.onclick=()=>send(b.dataset.q));
+$("save").onclick=()=>{let a=document.createElement("a");a.href=$("img").src;a.download="anuncio-gta.png";a.click()};
+if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js");
+let deferred;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;$("install").hidden=false});$("install").onclick=async()=>{if(deferred){deferred.prompt();deferred=null}};
